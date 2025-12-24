@@ -61,7 +61,7 @@ export default function StaffPage() {
     setLoading(false);
   }
 
-  const cities = [...new Set(staff.map(s => s.staff_profiles?.[0]?.city).filter(Boolean))];
+  const cities = [...new Set(staff.map(s => s.staff_profiles?.[0]?.city).filter(Boolean))] as string[];
 
   const filteredStaff = staff.filter(member => {
     const profile = member.staff_profiles?.[0];
@@ -87,7 +87,7 @@ export default function StaffPage() {
 
   const handleInvite = async () => {
     if (!inviteForm.email || inviteForm.staffRoles.length === 0) return;
-    
+
     setInviting(true);
     try {
       const res = await fetch('/api/staff/invite', {
@@ -97,7 +97,7 @@ export default function StaffPage() {
       });
 
       const data = await res.json();
-      
+
       if (data.success) {
         setInviteUrl(data.inviteUrl);
       } else {
@@ -122,15 +122,19 @@ export default function StaffPage() {
   const assignedCount = staff.filter(s => s.staff_profiles?.[0]?.status === 'assigned').length;
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-600">Loading staff...</p>
+      </div>
+    );
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Labor Pool</h1>
-          <p className="text-gray-500 mt-1">Manage your staff members</p>
+          <h1 className="text-2xl font-bold text-slate-900">Labor Pool</h1>
+          <p className="text-slate-600 mt-1">Manage your staff members</p>
         </div>
         <Button onClick={() => { setShowInviteModal(true); setInviteUrl(''); }}>
           + Invite Staff
@@ -141,19 +145,19 @@ export default function StaffPage() {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Total Staff</p>
-            <p className="text-2xl font-bold">{staff.length}</p>
+            <p className="text-sm font-medium text-slate-600">Total Staff</p>
+            <p className="text-2xl font-bold text-slate-900">{staff.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Available</p>
+            <p className="text-sm font-medium text-slate-600">Available</p>
             <p className="text-2xl font-bold text-green-600">{availableCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Currently Assigned</p>
+            <p className="text-sm font-medium text-slate-600">Currently Assigned</p>
             <p className="text-2xl font-bold text-blue-600">{assignedCount}</p>
           </CardContent>
         </Card>
@@ -164,11 +168,11 @@ export default function StaffPage() {
         <CardContent className="py-4">
           <div className="flex flex-wrap gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
               <select
                 value={filterCity}
                 onChange={(e) => setFilterCity(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
               >
                 <option value="all">All Cities</option>
                 {cities.map(city => (
@@ -177,11 +181,11 @@ export default function StaffPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
               >
                 <option value="all">All Roles</option>
                 {roles.map(role => (
@@ -190,11 +194,11 @@ export default function StaffPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
               >
                 <option value="all">All Status</option>
                 <option value="available">Available</option>
@@ -210,33 +214,33 @@ export default function StaffPage() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Staff Members</h2>
-            <span className="text-sm text-gray-500">{filteredStaff.length} members</span>
+            <h2 className="text-lg font-semibold text-slate-900">Staff Members</h2>
+            <span className="text-sm text-slate-600">{filteredStaff.length} members</span>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
           {filteredStaff.length > 0 ? (
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roles</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">City</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Roles</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">City</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-200">
                 {filteredStaff.map((member) => (
-                  <tr key={member.id} className="hover:bg-gray-50">
+                  <tr key={member.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-medium">{member.name.charAt(0)}</span>
+                          <span className="text-blue-700 font-semibold">{member.name.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{member.name}</p>
-                          <p className="text-sm text-gray-500">{member.email}</p>
+                          <p className="font-medium text-slate-900">{member.name}</p>
+                          <p className="text-sm text-slate-600">{member.email}</p>
                         </div>
                       </div>
                     </td>
@@ -247,7 +251,7 @@ export default function StaffPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{member.staff_profiles?.[0]?.city}</td>
+                    <td className="px-6 py-4 text-slate-700">{member.staff_profiles?.[0]?.city}</td>
                     <td className="px-6 py-4">
                       {member.staff_profiles?.[0] && getStatusBadge(member.staff_profiles[0].status)}
                     </td>
@@ -262,8 +266,10 @@ export default function StaffPage() {
               </tbody>
             </table>
           ) : (
-            <div className="py-12 text-center text-gray-500">
-              No staff members yet. Invite your first staff member to get started.
+            <div className="py-12 text-center text-slate-600">
+              {staff.length === 0
+                ? 'No staff members yet. Invite your first staff member to get started.'
+                : 'No staff members match your filters.'}
             </div>
           )}
         </div>
@@ -274,14 +280,14 @@ export default function StaffPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <h2 className="text-lg font-semibold">Invite New Staff</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Invite New Staff</h2>
             </CardHeader>
             <CardContent className="space-y-4">
               {inviteUrl ? (
                 <>
-                  <p className="text-green-600 font-medium">Invite created!</p>
+                  <p className="text-green-700 font-medium">Invite created!</p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Share this link with the staff member:
                     </label>
                     <div className="flex gap-2">
@@ -289,7 +295,7 @@ export default function StaffPage() {
                         type="text"
                         value={inviteUrl}
                         readOnly
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                        className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-900"
                       />
                       <Button
                         variant="secondary"
@@ -306,20 +312,20 @@ export default function StaffPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                     <input
                       type="email"
                       placeholder="staff@example.com"
                       value={inviteForm.email}
                       onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role Type(s)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Role Type(s)</label>
                     <div className="space-y-2">
                       {roles.map(role => (
-                        <label key={role} className="flex items-center gap-2">
+                        <label key={role} className="flex items-center gap-2 text-slate-700">
                           <input
                             type="checkbox"
                             className="rounded"
@@ -332,18 +338,18 @@ export default function StaffPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
                     <select
                       value={inviteForm.city}
                       onChange={(e) => setInviteForm(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white"
                     >
                       <option>San Francisco</option>
                       <option>Oakland</option>
                       <option>San Jose</option>
                     </select>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-600">
                     Staff will receive an invite link to complete onboarding.
                   </p>
                   <div className="flex gap-2 pt-4">
