@@ -1,13 +1,19 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Use service role for admin operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy initialization to avoid build-time errors
+function getSupabaseAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(url, key);
+}
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -54,6 +60,8 @@ export async function POST(req: Request) {
     // Default to 'staff' if not specified
     const role = (public_metadata?.role as string) || 'staff';
 
+    const supabaseAdmin = getSupabaseAdmin();
+
     // Create profile in Supabase
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -96,6 +104,8 @@ export async function POST(req: Request) {
     const name = [first_name, last_name].filter(Boolean).join(' ') || email;
     const role = (public_metadata?.role as string) || 'staff';
 
+    const supabaseAdmin = getSupabaseAdmin();
+
     const { error } = await supabaseAdmin
       .from('profiles')
       .update({ email, name, role })
@@ -108,6 +118,8 @@ export async function POST(req: Request) {
 
   if (eventType === 'user.deleted') {
     const { id } = evt.data;
+
+    const supabaseAdmin = getSupabaseAdmin();
 
     // Cascade delete will handle staff_profiles
     const { error } = await supabaseAdmin

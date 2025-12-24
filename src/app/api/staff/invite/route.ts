@@ -1,11 +1,17 @@
 import { auth } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(url, key);
+}
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -13,6 +19,8 @@ export async function POST(req: Request) {
   if (!userId) {
     return new Response('Unauthorized', { status: 401 });
   }
+
+  const supabaseAdmin = getSupabaseAdmin();
 
   // Check if user is admin
   const { data: profile } = await supabaseAdmin
@@ -72,6 +80,8 @@ export async function GET(req: Request) {
   if (!userId) {
     return new Response('Unauthorized', { status: 401 });
   }
+
+  const supabaseAdmin = getSupabaseAdmin();
 
   // Check if user is admin
   const { data: profile } = await supabaseAdmin
