@@ -2,8 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserButton, useUser } from '@clerk/nextjs';
-import { useUserProfile } from '@/hooks/useUser';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Clerk components to avoid SSR issues
+const UserSection = dynamic(() => import('./UserSection'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center gap-3 px-2">
+      <div className="w-8 h-8 bg-gray-700 rounded-full animate-pulse" />
+      <div className="flex-1">
+        <div className="h-4 bg-gray-700 rounded animate-pulse" />
+      </div>
+    </div>
+  )
+});
 
 const allNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['admin', 'staff', 'client', 'vendor'] },
@@ -16,23 +28,6 @@ const allNavItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user } = useUser();
-  const { role, isLoaded } = useUserProfile();
-
-  // Filter nav items based on user role
-  const navItems = allNavItems.filter(item => 
-    !role || item.roles.includes(role)
-  );
-
-  const getRoleBadgeColor = (role: string | null) => {
-    switch (role) {
-      case 'admin': return 'bg-red-500';
-      case 'vendor': return 'bg-purple-500';
-      case 'client': return 'bg-green-500';
-      case 'staff': return 'bg-blue-500';
-      default: return 'bg-gray-500';
-    }
-  };
 
   return (
     <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col">
@@ -43,7 +38,7 @@ export function Sidebar() {
       
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {allNavItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
               <li key={item.href}>
@@ -65,19 +60,7 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-800">
-        <div className="flex items-center gap-3 px-2">
-          <UserButton afterSignOutUrl="/sign-in" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
-              {user?.firstName || user?.emailAddresses[0]?.emailAddress || 'User'}
-            </p>
-            {isLoaded && role && (
-              <span className={`inline-block px-2 py-0.5 text-xs rounded-full capitalize ${getRoleBadgeColor(role)}`}>
-                {role}
-              </span>
-            )}
-          </div>
-        </div>
+        <UserSection />
       </div>
     </aside>
   );

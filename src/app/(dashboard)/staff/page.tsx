@@ -1,25 +1,74 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { mockStaff } from '@/lib/mockData';
+import { createClient } from '@/lib/supabase/client';
 import { StaffRole } from '@/types';
 
+interface StaffMember {
+  id: string;
+  email: string;
+  name: string;
+  staff_profiles: {
+    staff_roles: StaffRole[];
+    city: string;
+    status: 'available' | 'assigned' | 'unavailable';
+  }[] | null;
+}
+
 export default function StaffPage() {
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterCity, setFilterCity] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    city: 'San Francisco',
+    staffRoles: [] as StaffRole[],
+  });
+  const [inviteUrl, setInviteUrl] = useState('');
+  const [inviting, setInviting] = useState(false);
 
-  const cities = [...new Set(mockStaff.map(s => s.city))];
   const roles: StaffRole[] = ['bartender', 'server', 'kitchen', 'coordinator', 'security'];
 
-  const filteredStaff = mockStaff.filter(staff => {
-    if (filterCity !== 'all' && staff.city !== filterCity) return false;
-    if (filterRole !== 'all' && !staff.staffRoles.includes(filterRole as StaffRole)) return false;
-    if (filterStatus !== 'all' && staff.status !== filterStatus) return false;
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  async function fetchStaff() {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        email,
+        name,
+        staff_profiles (
+          staff_roles,
+          city,
+          status
+        )
+      `)
+      .eq('role', 'staff');
+
+    if (!error && data) {
+      setStaff(data as StaffMember[]);
+    }
+    setLoading(false);
+  }
+
+  const cities = [...new Set(staff.map(s => s.staff_profiles?.[0]?.city).filter(Boolean))];
+
+  const filteredStaff = staff.filter(member => {
+    const profile = member.staff_profiles?.[0];
+    if (!profile) return false;
+    if (filterCity !== 'all' && profile.city !== filterCity) return false;
+    if (filterRole !== 'all' && !profile.staff_roles.includes(filterRole as StaffRole)) return false;
+    if (filterStatus !== 'all' && profile.status !== filterStatus) return false;
     return true;
   });
 
@@ -36,8 +85,45 @@ export default function StaffPage() {
     }
   };
 
-  const availableCount = mockStaff.filter(s => s.status === 'available').length;
-  const assignedCount = mockStaff.filter(s => s.status === 'assigned').length;
+  const handleInvite = async () => {
+    if (!inviteForm.email || inviteForm.staffRoles.length === 0) return;
+    
+    setInviting(true);
+    try {
+      const res = await fetch('/api/staff/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inviteForm),
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        setInviteUrl(data.inviteUrl);
+      } else {
+        alert('Failed to create invite');
+      }
+    } catch (err) {
+      alert('Error creating invite');
+    }
+    setInviting(false);
+  };
+
+  const toggleRole = (role: StaffRole) => {
+    setInviteForm(prev => ({
+      ...prev,
+      staffRoles: prev.staffRoles.includes(role)
+        ? prev.staffRoles.filter(r => r !== role)
+        : [...prev.staffRoles, role],
+    }));
+  };
+
+  const availableCount = staff.filter(s => s.staff_profiles?.[0]?.status === 'available').length;
+  const assignedCount = staff.filter(s => s.staff_profiles?.[0]?.status === 'assigned').length;
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>;
+  }
 
   return (
     <div>
@@ -46,7 +132,9 @@ export default function StaffPage() {
           <h1 className="text-2xl font-bold text-gray-900">Labor Pool</h1>
           <p className="text-gray-500 mt-1">Manage your staff members</p>
         </div>
-        <Button onClick={() => setShowInviteModal(true)}>+ Invite Staff</Button>
+        <Button onClick={() => { setShowInviteModal(true); setInviteUrl(''); }}>
+          + Invite Staff
+        </Button>
       </div>
 
       {/* Quick Stats */}
@@ -54,7 +142,7 @@ export default function StaffPage() {
         <Card>
           <CardContent className="py-4">
             <p className="text-sm text-gray-500">Total Staff</p>
-            <p className="text-2xl font-bold">{mockStaff.length}</p>
+            <p className="text-2xl font-bold">{staff.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -80,7 +168,7 @@ export default function StaffPage() {
               <select
                 value={filterCity}
                 onChange={(e) => setFilterCity(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="all">All Cities</option>
                 {cities.map(city => (
@@ -93,7 +181,7 @@ export default function StaffPage() {
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="all">All Roles</option>
                 {roles.map(role => (
@@ -106,7 +194,7 @@ export default function StaffPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="all">All Status</option>
                 <option value="available">Available</option>
@@ -127,49 +215,57 @@ export default function StaffPage() {
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roles</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredStaff.map((staff) => (
-                <tr key={staff.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-medium">{staff.name.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{staff.name}</p>
-                        <p className="text-sm text-gray-500">{staff.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {staff.staffRoles.map(role => (
-                        <Badge key={role} variant="info" className="capitalize">{role}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">{staff.city}</td>
-                  <td className="px-6 py-4">{getStatusBadge(staff.status)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">View</Button>
-                      <Button variant="ghost" size="sm">Message</Button>
-                    </div>
-                  </td>
+          {filteredStaff.length > 0 ? (
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roles</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">City</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredStaff.map((member) => (
+                  <tr key={member.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-medium">{member.name.charAt(0)}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{member.name}</p>
+                          <p className="text-sm text-gray-500">{member.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {member.staff_profiles?.[0]?.staff_roles.map(role => (
+                          <Badge key={role} variant="info" className="capitalize">{role}</Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">{member.staff_profiles?.[0]?.city}</td>
+                    <td className="px-6 py-4">
+                      {member.staff_profiles?.[0] && getStatusBadge(member.staff_profiles[0].status)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm">View</Button>
+                        <Button variant="ghost" size="sm">Message</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="py-12 text-center text-gray-500">
+              No staff members yet. Invite your first staff member to get started.
+            </div>
+          )}
         </div>
       </Card>
 
@@ -181,44 +277,89 @@ export default function StaffPage() {
               <h2 className="text-lg font-semibold">Invite New Staff</h2>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input 
-                  type="email" 
-                  placeholder="staff@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role Type(s)</label>
-                <div className="space-y-2">
-                  {roles.map(role => (
-                    <label key={role} className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="capitalize">{role}</span>
+              {inviteUrl ? (
+                <>
+                  <p className="text-green-600 font-medium">Invite created!</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Share this link with the staff member:
                     </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-                  <option>San Francisco</option>
-                  <option>Oakland</option>
-                  <option>San Jose</option>
-                </select>
-              </div>
-              <p className="text-sm text-gray-500">
-                Staff will receive an email invite to complete onboarding and will enter the pool as "Available" once complete.
-              </p>
-              <div className="flex gap-2 pt-4">
-                <Button variant="secondary" className="flex-1" onClick={() => setShowInviteModal(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1" onClick={() => setShowInviteModal(false)}>
-                  Send Invite
-                </Button>
-              </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={inviteUrl}
+                        readOnly
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50"
+                      />
+                      <Button
+                        variant="secondary"
+                        onClick={() => navigator.clipboard.writeText(inviteUrl)}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                  <Button className="w-full" onClick={() => setShowInviteModal(false)}>
+                    Done
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="staff@example.com"
+                      value={inviteForm.email}
+                      onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role Type(s)</label>
+                    <div className="space-y-2">
+                      {roles.map(role => (
+                        <label key={role} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="rounded"
+                            checked={inviteForm.staffRoles.includes(role)}
+                            onChange={() => toggleRole(role)}
+                          />
+                          <span className="capitalize">{role}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <select
+                      value={inviteForm.city}
+                      onChange={(e) => setInviteForm(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option>San Francisco</option>
+                      <option>Oakland</option>
+                      <option>San Jose</option>
+                    </select>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Staff will receive an invite link to complete onboarding.
+                  </p>
+                  <div className="flex gap-2 pt-4">
+                    <Button variant="secondary" className="flex-1" onClick={() => setShowInviteModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handleInvite}
+                      disabled={inviting || !inviteForm.email || inviteForm.staffRoles.length === 0}
+                    >
+                      {inviting ? 'Creating...' : 'Create Invite'}
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
