@@ -24,6 +24,7 @@ const allNavItems = [
   { href: '/dispatch', label: 'Dispatch Board', icon: '📋', roles: ['admin', 'staff', 'client', 'vendor'] },
   { href: '/chat', label: 'Messages', icon: '💬', roles: ['admin', 'staff', 'client', 'vendor'] },
   { href: '/jobs', label: 'My Jobs', icon: '🎯', roles: ['staff'] },
+  { href: '/test', label: 'Test (Figma)', icon: '🎨', roles: ['admin', 'staff', 'client', 'vendor'] },
 ];
 
 export function Sidebar() {
